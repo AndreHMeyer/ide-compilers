@@ -1,0 +1,5 @@
+int a;
+int vetor[10];
+
+input(a, vetor[0]);
+print("Valor", a, vetor[0]);

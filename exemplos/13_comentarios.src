@@ -1,0 +1,9 @@
+int a;
+
+// comentario
+a = 10;
+
+/*
+comentario
+de varias linhas
+*/
