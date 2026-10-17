@@ -23,6 +23,7 @@ DARK_THEME = {
     "selection": "#334f75",
     "success": "#8dd9a8",
     "error": "#ff9a9e",
+    "warning": "#f2ce78",
     "error_line": "#482c35",
 }
 
@@ -75,6 +76,12 @@ class IDEApp:
         )
         style.map("TScrollbar", background=[("active", colors["selection"]), ("pressed", colors["selection"])])
         style.configure("Sash", background=colors["background"], sashthickness=6)
+        style.configure("Treeview", background=colors["editor"], fieldbackground=colors["editor"],
+                        foreground=colors["text"], rowheight=28, font=("TkDefaultFont", 11))
+        style.configure("Treeview.Heading", background=colors["surface"], foreground=colors["text"])
+        style.map("Treeview", background=[("selected", colors["selection"])],
+                  foreground=[("selected", "#ffffff")])
+        style.map("TNotebook.Tab", background=[("selected", colors["surface"])])
 
     def _create_code_font(self) -> font.Font:
         available = set(font.families(self.root))
@@ -139,7 +146,9 @@ class IDEApp:
         self.editor.tag_configure("error_line", background=DARK_THEME["error_line"])
         self.panes.add(editor_frame, weight=4)
 
-        messages_frame = ttk.Frame(self.panes)
+        self.results_tabs = ttk.Notebook(self.panes)
+        messages_frame = ttk.Frame(self.results_tabs)
+        self.results_tabs.add(messages_frame, text="Mensagens")
         messages_frame.columnconfigure(0, weight=1)
         messages_frame.rowconfigure(1, weight=1)
         ttk.Label(messages_frame, text="Mensagens", padding=(0, 8)).grid(row=0, column=0, sticky="w")
@@ -157,12 +166,57 @@ class IDEApp:
         self.messages.configure(yscrollcommand=messages_y.set)
         self.messages.tag_configure("success", foreground=DARK_THEME["success"])
         self.messages.tag_configure("error", foreground=DARK_THEME["error"])
-        self.panes.add(messages_frame, weight=1)
+        self.messages.tag_configure("warning", foreground=DARK_THEME["warning"])
+        self._create_symbol_table()
+        self.panes.add(self.results_tabs, weight=1)
 
         self.status = tk.StringVar(value="Pronto. F9 para compilar.")
         ttk.Label(self.root, textvariable=self.status, padding=(14, 5), anchor="w").grid(
             row=3, column=0, sticky="ew",
         )
+
+    def _create_symbol_table(self) -> None:
+        frame = ttk.Frame(self.results_tabs)
+        frame.columnconfigure(0, weight=1)
+        frame.rowconfigure(1, weight=1)
+        self.results_tabs.add(frame, text="Tabela de Símbolos")
+        self.symbol_status = tk.StringVar(value="Nenhuma compilação realizada.")
+        ttk.Label(frame, textvariable=self.symbol_status, padding=(4, 8)).grid(row=0, column=0, sticky="w")
+        columns = ("name", "type", "modality", "scope", "used", "initialized", "line", "column", "detail")
+        self.symbol_tree = ttk.Treeview(frame, columns=columns, show="headings", height=6)
+        for key, title, width in zip(columns,
+                                    ("Identificador", "Tipo", "Modalidade", "Escopo", "Utilizado",
+                                     "Inicializado", "Linha", "Coluna", "Vetor / assinatura"),
+                                    (130, 75, 110, 240, 85, 145, 60, 65, 240)):
+            self.symbol_tree.heading(key, text=title)
+            self.symbol_tree.column(key, width=width, minwidth=50, stretch=False)
+        self.symbol_tree.grid(row=1, column=0, sticky="nsew")
+        scroll_y = ttk.Scrollbar(frame, orient="vertical", command=self.symbol_tree.yview)
+        scroll_y.grid(row=1, column=1, sticky="ns")
+        scroll_x = ttk.Scrollbar(frame, orient="horizontal", command=self.symbol_tree.xview)
+        scroll_x.grid(row=2, column=0, sticky="ew")
+        self.symbol_tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
+
+    def _show_symbols(self, result) -> None:
+        for symbol in result.symbols:
+            initialized = "Sim" if symbol.initialized else "Não"
+            if symbol.is_array and not symbol.initialized and symbol.initialized_elements:
+                initialized = "Parcial: " + ", ".join(map(str, symbol.initialized_elements))
+            if result.symbols_partial:
+                initialized = "Não concluído"
+            detail = symbol.signature
+            if symbol.is_array:
+                detail = f"Tamanho: {symbol.size if symbol.size is not None else 'dinâmico/não especificado'}"
+            self.symbol_tree.insert("", "end", iid=str(symbol.uid), values=(
+                symbol.name, symbol.type, symbol.modality, symbol.scope,
+                "Sim" if symbol.used else "Não", initialized, symbol.line or "", symbol.column or "", detail,
+            ))
+        if result.kind == "empty":
+            self.symbol_status.set("Nenhum código-fonte informado.")
+        elif result.symbols_partial:
+            self.symbol_status.set(f"Tabela parcial — análise interrompida; {len(result.symbols)} símbolo(s).")
+        else:
+            self.symbol_status.set(f"Análise concluída — {len(result.symbols)} símbolo(s), incluindo escopos encerrados.")
 
     def _bind_shortcuts(self) -> None:
         for sequence, command in (
@@ -195,6 +249,8 @@ class IDEApp:
             self.editor.edit_modified(False)
             self.editor.tag_remove("error_line", "1.0", "end")
             self.status.set("Código alterado. F9 para compilar.")
+            if self.symbol_tree.get_children():
+                self.symbol_status.set("Resultado da última compilação — código alterado. F9 para atualizar.")
             self._update_title()
 
     def _update_title(self) -> None:
@@ -205,6 +261,10 @@ class IDEApp:
     def _clear_output(self) -> None:
         self.editor.tag_remove("error_line", "1.0", "end")
         self._show_message("")
+        rows = self.symbol_tree.get_children()
+        if rows:
+            self.symbol_tree.delete(*rows)
+        self.symbol_status.set("Nenhuma compilação realizada.")
 
     def _show_message(self, message: str, tag: str = "") -> None:
         self.messages.configure(state="normal")
@@ -223,7 +283,15 @@ class IDEApp:
         result = compile_source(self._source())
         tag = "success" if result.kind == "success" else "error" if result.kind.endswith("error") else ""
         self._show_message(result.message, tag)
-        self.status.set(result.message.splitlines()[0])
+        if result.warnings:
+            self.messages.configure(state="normal")
+            for warning in result.warnings:
+                self.messages.insert("end", "\n" + warning.formatted, ("warning",))
+            self.messages.configure(state="disabled")
+        self._show_symbols(result)
+        self.results_tabs.select(0)
+        count = f" {len(result.warnings)} aviso(s)." if result.warnings else ""
+        self.status.set(result.message.splitlines()[0] + count)
         if result.line is not None:
             start = f"{result.line}.0"
             self.editor.tag_add("error_line", start, f"{start} lineend + 1c")

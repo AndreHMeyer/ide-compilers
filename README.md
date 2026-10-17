@@ -1,220 +1,291 @@
-# IDE Compiladores
+# IDE Compiladores — análise léxica, sintática e semântica
 
-IDE desktop em Python/Tkinter para editar arquivos de código-fonte e
-realizar análise léxica e sintática com os analisadores gerados pelo WebGALS.
-**A aplicação não executa nem interpreta o programa, não gera código de máquina
-e não realiza análise semântica.**
+Compilador acadêmico com interface desktop Python/Tkinter. O botão **Compilar
+(F9)** integra as três etapas: scanner léxico gerado pelo WebGALS, parser SLR(1)
+gerado e análise semântica conduzida pelas ações da gramática.
 
-## Requisitos e execução
+A aplicação faz análise estática. Não executa `input`, `print`, funções ou laços,
+não interpreta programas e não gera código de máquina. Usa apenas a biblioteca
+padrão do Python, sem dependências adicionais de execução.
 
-- Python **3.10 ou superior**: o parser exportado utiliza `match/case`.
-- Tkinter com Tcl/Tk e um ambiente gráfico desktop.
-- Somente bibliotecas da Standard Library; não é necessário instalar pacotes com pip.
+## Executar
 
-Na pasta raiz deste projeto, execute:
+Requisitos: **Python 3.10 ou superior**, Tkinter/Tcl/Tk e sessão gráfica desktop.
+Na raiz do projeto:
 
 ```console
 python main.py
 ```
 
-No Windows, o instalador do Python deve incluir Tcl/Tk. Caso o comando `python`
-aponte apenas para o atalho da Microsoft Store, utilize o executável da instalação
-real. Nesta máquina, a alternativa no PowerShell é:
+Se `python` apontar para o atalho da Microsoft Store, use a instalação real:
 
 ```powershell
 & "$env:LOCALAPPDATA\Programs\Python\Python313\python.exe" main.py
 ```
 
-No Linux, algumas distribuições fornecem Tkinter em um pacote separado
-(`python3-tk`). Não é necessária conexão com a internet para usar a IDE.
+O instalador deve incluir Tcl/Tk. No Linux, pode ser necessário `python3-tk`.
+A aplicação não precisa de internet.
 
-## Como utilizar
+## Utilizar a IDE
 
-1. Digite um programa ou use **Arquivo → Abrir...** para carregar um `.src` ou `.txt`.
-2. Clique em **Compilar (F9)**, pressione **F9** ou use o menu **Compilar**.
-3. Leia o resultado no painel **Mensagens**, abaixo do editor.
-4. Use **Salvar** ou **Salvar como...** para gravar o código em UTF-8.
+Abra um `.src`/`.txt` ou digite no editor, compile e consulte as abas **Mensagens**
+e **Tabela de Símbolos**. Editor e mensagens mantêm fonte monoespaçada de **14
+pontos**, tema escuro, rolagem e destaque da linha do erro. Avisos aparecem em
+amarelo e não impedem o sucesso. A divisão entre editor e resultados é ajustável.
 
-O editor e o painel de mensagens usam fonte monoespaçada de **14 pontos**.
-A interface utiliza **tema escuro**, com mensagens de sucesso em verde e erros
-em vermelho claro. A barra de título e os diálogos nativos de arquivos e
-confirmações seguem a aparência definida pelo sistema operacional.
-A fonte é escolhida entre Consolas, Courier New e a fonte monoespaçada padrão
-do sistema. O editor possui rolagem vertical e horizontal, tabulações equivalentes
-a quatro espaços na exibição e desfazer/refazer nativos do Tkinter.
-O painel de mensagens é somente leitura e tem rolagem vertical.
-A divisão entre os painéis pode ser arrastada e a janela pode ser redimensionada.
+A tabela mostra os símbolos reais do analisador: identificador, tipo, modalidade,
+escopo, utilização, inicialização, linha, coluna e dimensão/assinatura. Possui
+rolagem horizontal/vertical e histórico dos escopos encerrados. Em erro, indica
+**Tabela parcial** e inicialização **Não concluído**. Cada compilação limpa o
+resultado anterior; uma edição sinaliza que a tabela pertence à última compilação.
+Novo/Abrir também limpam a tabela.
 
-| Ação | Atalho / comportamento |
+| Ação | Atalho |
 | --- | --- |
-| Novo | Ctrl+N; limpa editor, mensagens e arquivo atual |
-| Abrir | Ctrl+O; carrega um arquivo UTF-8, também aceitando BOM |
-| Salvar | Ctrl+S; solicita o destino se o arquivo ainda não tiver nome |
-| Salvar como | Ctrl+Shift+S; escolhe outro destino |
-| Compilar | F9; limpa o resultado anterior e analisa todo o programa |
-| Sair | Menu Arquivo ou botão de fechar da janela |
+| Novo | Ctrl+N |
+| Abrir | Ctrl+O |
+| Salvar | Ctrl+S |
+| Salvar como | Ctrl+Shift+S |
+| Compilar | F9, botão ou menu |
+| Sair | Menu Arquivo ou fechar janela |
 
-O título mostra o nome do arquivo e `*` quando existem alterações não salvas.
-Ao criar, abrir ou fechar um documento alterado, é possível salvar, descartar ou
-cancelar a operação. Cancelamentos e falhas de leitura/escrita preservam o documento.
+Preservados: UTF-8/BOM e quebras de linha do Windows, desfazer/refazer, tabulações
+visuais de quatro espaços, título com alterações pendentes, confirmação de
+salvar/descartar/cancelar, tratamento de falhas de arquivo e mensagens somente leitura.
 
-## Integração com o WebGALS
-
-Os arquivos exportados continuam em `Analisador_Sintatico/`. A IDE utiliza a API
-real encontrada nesses arquivos:
-
-```python
-scanner = Lexico(codigo)
-parser = Sintatico()
-parser.parse(scanner, Semantico())
-```
-
-`Lexico(input)` inicializa o código usando `set_input(input)`. Durante o `parse`,
-o próprio parser solicita tokens por `scanner.next_token()` até aceitar o final
-da entrada. Cada compilação cria novas instâncias. A tabela SLR(1) fornecida possui
-222 estados e 120 produções; a tabela léxica possui 51 estados.
-
-A exportação atualmente presente usa `input(...)` para entrada, `print(...)`
-para saída e `bool` para o tipo booleano. Os exemplos acompanham essa versão.
-As construções antigas `cin >> ...`, `cout << ...` e declarações com `boolean`
-não fazem parte da gramática atual; a IDE não traduz comandos nem altera as tabelas.
-
-`Semantico()` é o objeto exportado que atende ao parâmetro obrigatório de `parse`.
-Sua interface é `execute_action(action, token)`. A tabela fornecida não contém
-ações semânticas, portanto esse método não é chamado.
-
-Os imports absolutos dos arquivos gerados são resolvidos por uma inclusão
-temporária da pasta no caminho de importação, dentro de `compiler_service.py`.
-Isso evita mover os arquivos ou manter `Token.py` no caminho de busca do módulo
-`token` da biblioteca padrão.
-
-### Correções necessárias na exportação
-
-Foram identificados e reproduzidos defeitos no código Python original. Somente
-dois arquivos gerados receberam correções pontuais:
-
-- `Token.py`: anotação `TokenID` corrigida para o enum existente `TokenId`, evitando
-  `NameError` ao importar os analisadores.
-- `Lexico.py`: referência `SCANNER_ERROR` corrigida para `SCANNER_ERRORS`; somente
-  estados com token maior ou igual a zero são guardados como estados de aceitação.
-  Assim o scanner preserva o último token válido, sem criar `TokenId(-1)` ou
-  `TokenId(-2)`. O diagnóstico também considera o estado correto no fim da entrada,
-  inclusive em comentários `/*` incompletos. Caracteres fora das 256 colunas da
-  tabela retornam transição inválida, evitando `IndexError` e permitindo informar
-  erro léxico.
-
-**Nenhuma regra léxica, produção ou tabela foi modificada.** `Constants.py`,
-`Sintatico.py`, `Errors.py`, `Semantico.py` e o `main.py` exportado foram preservados.
-Não há scanner ou parser alternativo. Ao exportar novamente do WebGALS, verifique
-se essas inconsistências da geração reapareceram e execute os testes.
-
-### Resultados e posições
-
-- Sucesso: **Compilação realizada com sucesso.**
-- Editor vazio ou contendo somente espaços/quebras de linha:
-  **Nenhum código-fonte informado.**
-- `LexicalError`: mensagem original, linha e coluna.
-- `SyntacticError`: token inesperado (ou fim da entrada), mensagem original,
-  linha e coluna.
-- Outras exceções: **Erro inesperado**, sem classificar a falha como erro da linguagem.
-
-As exceções reais de `Errors.py` contêm `message` e `position`.
-`position_to_line_column` converte a posição absoluta em linha/coluna a partir de 1.
-Cada tabulação conta como um caractere nessa posição. A linha com erro recebe um
-destaque que é removido na próxima compilação ou edição.
-
-O exportador forneceu mensagens sintáticas genéricas, como `Erro estado 84`, sem
-lista de símbolos esperados. A IDE conserva essa mensagem e acrescenta o token
-real; não inventa sugestões. No fim da entrada, o parser informa a posição logo
-após o último token, mesmo quando há espaços ou comentários posteriores.
-O alfabeto disponível é o da tabela exportada; caracteres fora dele são rejeitados.
-
-## Estrutura
+## Arquitetura
 
 ```text
-main.py                     Ponto de entrada da IDE
-ide/
-    __init__.py
-    app.py                  Janela, editor, menus, mensagens e arquivos
-    compiler_service.py     Integração WebGALS e conversão de erros
+main.py                         Entrada da IDE
+ide/app.py                      Tkinter: editor, arquivos, mensagens e tabela
+ide/compiler_service.py         Integração e CompilationResult
 Analisador_Sintatico/
-    Constants.py            Tokens, tabelas léxica/sintática e produções
-    Errors.py               Exceções exportadas
-    Lexico.py               Scanner gerado
-    Sintatico.py            Parser SLR gerado
-    Semantico.py            Objeto exigido pelo contrato do parser
-    Token.py                Token exportado
-    main.py                 Exemplo original do gerador; não inicia a IDE
-exemplos/                   13 casos de teste adaptados à gramática atual
-tests/
-    test_compiler_service.py
-    test_app.py
+    Constants.py                Tokens e tabelas WebGALS
+    Lexico.py                   Scanner com correções de compatibilidade
+    Sintatico.py                Parser SLR gerado, preservado
+    Token.py                    Token exportado, com TokenId corrigido
+    Errors.py                   Exceções das três fases
+    Semantico.py                execute_action: conexão com as 59 ações
+    semantic_model.py           Símbolos, escopos, referências e diagnósticos
+    semantic_types.py           Compatibilidade e tipos das expressões
+    semantic_flow.py            Inicialização por caminhos de controle
+    main.py                     Exemplo do gerador; não inicia a IDE
+docs/acoes_semanticas.md         Contrato completo dos marcadores
+exemplos/                       13 exemplos anteriores preservados
+exemplos/semantica/             Casos para apresentação da etapa 3
+tests/                          Serviço, semântica e widgets reais
 ```
 
-## Exemplos válidos
+Cada compilação cria `Lexico(source)`, `Sintatico()` e
+`Semantico(source, defer_errors=True)`, chamando a API real
+`parser.parse(scanner, semantic)`. O serviço não importa Tkinter.
 
-Declaração e repetição:
+`CompilationResult` contém `kind`, `message`, `line`, `column`, `errors`,
+`warnings`, `symbols` e `symbols_partial`, com propriedades `success` e
+`diagnostics`. A mensagem principal permanece separada dos avisos estruturados.
+Os imports absolutos dos arquivos exportados são resolvidos por inclusão temporária
+de sua pasta no caminho de importação, sem deixar `Token.py` sombrear `token`.
 
-```cpp
-int i;
-for (i = 0; i < 10; i = i + 1) {
-    print(i);
-}
+## WebGALS e ações semânticas
+
+A exportação atual tem **307 estados SLR, 123 produções, 59 ações semânticas e
+51 estados léxicos**. A gramática exportada é a fonte de verdade da sintaxe.
+Não foram editadas tabelas nem criado outro parser ou reconhecimento por regex.
+`Constants.py` já estava atualizado ao iniciar esta etapa: sua diferença no Git
+pertence à reexportação anterior e foi preservada.
+
+O parser executa `SLRAction.ACTION` e chama
+`execute_action(numero, previous_token)`. Pilhas distintas preservam valores,
+operadores, identificadores, destinos e chamadas. As reduções determinam a
+precedência. Em `#51`, a análise de inicialização percorre operações semânticas
+já estruturadas pelas ações, sem reler ou analisar sintaticamente o código.
+Assim o incremento do for pode ser analisado depois do corpo.
+
+O [contrato completo das ações](docs/acoes_semanticas.md) explica os 59 marcadores,
+seus pontos de disparo e o tratamento de chamadas, funções, blocos e laços.
+
+### Compatibilidade e reexportação
+
+`Token.py` preserva a correção `TokenID` → `TokenId`. Em `Lexico.py`, foram
+restauradas correções perdidas na reexportação: aceitar somente estados com token
+`>= 0`, usar `SCANNER_ERRORS`, diagnosticar corretamente tokens incompletos no EOF
+e rejeitar caracteres fora das 256 colunas sem causar `IndexError`.
+
+Não foi necessário alterar a gramática. O arquivo externo
+`../Analisador_Sintatico.vgls` ainda é da etapa 2, sem ações, e não representa a
+exportação Python atual. Antes de reexportar, versione a especificação atualizada
+do WebGALS. Preserve `Semantico.py` e seus auxiliares para não sobrescrevê-los com
+o stub do gerador. Os testes conferem a cobertura de todas as ações.
+
+## Símbolos e escopos
+
+Cada símbolo contém ID único, nome, tipo, modalidade, escopo/escopo pai,
+posição/linha/coluna, usos de leitura/escrita, inicialização, elementos
+inicializados, dimensão e parâmetros/assinatura.
+
+As modalidades são **variável**, **vetor**, **parâmetro** e **função**. Parâmetro
+vetorial mantém modalidade parâmetro e `is_array=True`. Procedimento é função
+com retorno `void`. Todos compartilham um espaço de nomes, sem sobrecarga.
+
+A resolução procura no escopo atual e ancestrais. Existem escopos global, de
+função, de bloco e de for. Parâmetros e variáveis diretamente no corpo da função
+compartilham escopo, pois esse corpo não dispara `#30/#31`. Blocos internos podem
+sombrear nomes. Irmãos, funções distintas e blocos encerrados não são acessíveis.
+A variável do cabeçalho de for deixa de ser acessível ao terminar o laço. O
+histórico permanece na tabela, mas não participa da resolução fora do escopo.
+Duplicidades incluem a posição da declaração original e da nova declaração.
+
+## Regras de tipos
+
+| Operação | Regra |
+| --- | --- |
+| Atribuição, argumento e retorno escalar | Mesmo tipo ou promoção `int → float → double`; sem estreitamento |
+| Literais | Decimal/binário/hexadecimal: int; real: float; caractere: char; texto: string; true/false: bool |
+| `+ - * /` | Numéricos; resultado do tipo de maior precisão |
+| `% & \| ^ << >>` | Dois int; resultado int |
+| `&& \|\| !` | Somente bool |
+| Unário `-` | Numérico, preservando tipo |
+| Unário `~` | Somente int |
+| `< > <= >=` | Dois numéricos ou dois char; resultado bool |
+| `== !=` | Dois numéricos ou mesmo tipo escalar; resultado bool |
+| Condições | Somente bool, inclusive nos laços |
+| Dimensão/índice | int; positividade/limites verificados quando constantes |
+
+Char, string e bool não se convertem implicitamente em números. Strings não
+participam de aritmética nem concatenação via `+`. Void não produz valor. Vetores
+inteiros não são escalares: exigem índice em atribuição, input, print e operações;
+podem ser passados a parâmetros vetoriais do mesmo tipo, sem promoção de elementos.
+Se os dois tamanhos forem conhecidos, devem coincidir. Tamanhos dinâmicos int são
+aceitos, mas seus limites não são comprovados estaticamente.
+
+A produção existente `int v[3] = 5;` adota **preenchimento uniforme**: a expressão
+deve ser compatível com o tipo de elemento e inicializa todo o vetor. A gramática
+não oferece listas de inicialização nem atribuição posterior de escalar ao vetor inteiro.
+
+Funções são registradas antes do corpo para permitir recursão. Cada chamada
+aninhada mantém argumentos próprios. Validam-se nome, modalidade, quantidade,
+tipos e retorno. `return;` só vale em void; `return exp;` exige retorno não void
+compatível. Funções não void precisam retornar em todos os caminhos que podem
+terminar normalmente.
+
+## Utilização e inicialização
+
+Leitura, escrita ou chamada conta como utilização. A declaração, incluindo seu
+inicializador, não conta como uso do símbolo declarado: `int x=1;` gera aviso de
+não utilização; `int x;x=1;` conta como uso por escrita. Isso inclui vetores,
+parâmetros e funções. Recursão conta como uso. Código inalcançável continua
+validado em nomes/tipos e conta como referência, mas não gera aviso de leitura.
+
+A inicialização é analisada por estados de cada caminho, não por uma flag única:
+
+- Declaração sem inicializador começa sem valor; parâmetros começam inicializados.
+- Atribuição e input inicializam depois das leituras necessárias. `x=x+1` lê antes
+  de escrever; o destino de `x=1` não é leitura.
+- If sem else intersecta entrada/then; if/else intersecta os dois caminhos.
+  Caminhos que retornam são excluídos da junção dos caminhos que continuam.
+- While/for podem executar zero vezes. Escritas exclusivas do corpo/incremento
+  não são garantidas após o laço. A inicialização do cabeçalho é garantida.
+- O incremento do for é analisado após o corpo e não inicializa sua primeira
+  entrada. Seus avisos consideram também condicionais internas ao corpo.
+- Do-while considera uma passagem pelo corpo antes da condição.
+- Vetores controlam índices constantes individualmente. Escrita em índice dinâmico
+  não garante elemento específico. Leitura dinâmica exige todos os elementos
+  comprovadamente inicializados, senão avisa.
+- A coluna Inicializado mostra garantias nas saídas do escopo, incluindo returns;
+  pode mostrar inicialização parcial de elementos de vetor.
+
+Avisos usam códigos `unused` e `uninitialized`, posição da declaração/leitura e
+deduplicação por código, símbolo e posição. Leituras distintas podem gerar avisos
+distintos. Avisos nunca tornam `success` falso.
+
+## Erros e avisos
+
+O serviço distingue erros léxicos, sintáticos, semânticos e internos. Linha/coluna
+começam em 1; tabulação conta como um caractere. Preserva-se a mensagem léxica.
+Erros sintáticos incluem token inesperado/EOF e mensagem original do WebGALS.
+No EOF, usa-se a posição reportada pelo parser.
+
+O primeiro erro semântico suspende as ações seguintes. O mesmo parser continua
+para detectar erros léxicos/sintáticos, que têm prioridade. Em erro, não se
+publicam avisos finais; a tabela é parcial. Cada compilação cria contexto limpo.
+Entrada vazia conserva sua mensagem própria.
+
+## Exemplos
+
+Os 13 exemplos anteriores permanecem em `exemplos/`; 11 e 12 contêm erros
+sintático/léxico propositais. Casos da nova etapa em `exemplos/semantica/`:
+
+| Arquivo | Resultado |
+| --- | --- |
+| `01_completo.src` | Sucesso: recursão, chamadas aninhadas, vetor e for |
+| `02_avisos.src` | Sucesso com avisos de não utilização/inicialização |
+| `03_erro_tipo.src` | Erro ao atribuir string a int |
+| `04_erro_escopo.src` | Erro ao acessar i depois do for |
+
+```c
+int x;
+input(x);
+print(x); // sucesso sem aviso de leitura não inicializada
 ```
 
-Função e chamada:
-
-```cpp
-int somar(int a, int b) {
-    return a + b;
-}
-
-int resultado;
-resultado = somar(10, 20);
+```c
+int x;
+if (true) { x=1; }
+print(x); // sucesso com aviso conservador
 ```
 
-Entrada, saída e tipo booleano:
-
-```cpp
-int a, vetor[10];
-bool ativo;
-ativo = true;
-input(a, vetor[0]);
-print("Valor", a, vetor[0], ativo);
+```c
+int x = "abc"; // erro semântico
 ```
 
-Esses programas são apenas analisados: `input` não solicita valores e `print`
-não produz saída da execução.
-Os exemplos `01` a `10` e `13` são válidos. `11_erro_sintatico.src` e
-`12_erro_lexico.src` contêm erros propositais para demonstrar os diagnósticos.
+## Testes
 
-## Validação
+Validação em 17/10/2026, no Windows com Python 3.13.7: **163 testes aprovados**,
+sendo 144 de serviço/semântica e 19 de interface, sem falhas ou testes ignorados.
+As abas de mensagens e símbolos também foram inspecionadas visualmente na janela
+real. O comando de entrada `main.py` também abriu em processo independente e
+encerrou com código 0.
+Na sandbox de desenvolvimento, Tcl não inicializou; os testes gráficos
+passaram fora dela, usando a instalação existente, sem alterar a aplicação.
 
-Validação realizada no Windows com Python 3.13.7 e Tcl/Tk 8.6.15:
-**29 testes aprovados**, incluindo 13 cenários adaptados à gramática atual,
-tanto no serviço de compilação quanto pelo botão da interface. A janela também foi aberta e
-inspecionada visualmente com compilação válida e erro léxico; ambos os painéis
-utilizaram Consolas de 14 pontos. O seletor nativo de Abrir foi exercitado
-adicionalmente com um arquivo temporário real.
-
-Execute todos os testes, incluindo a interface real do Tkinter:
+Suíte completa, incluindo janelas Tkinter temporárias:
 
 ```console
 python -m unittest discover -s tests -v
 ```
 
-Os testes da interface precisam de uma sessão gráfica e abrem janelas temporárias.
-Usam widgets e arquivos reais; as respostas dos seletores e das confirmações são
-simuladas para permitir validação automática sem interação humana.
-Cobrem os 13 exemplos pelo botão Compilar, Novo/Abrir/Salvar/Salvar como/Sair,
-cancelamentos, erros de arquivo, F9, tabulação, destaque, fontes de 14 pontos e
-redimensionamento. A integração também testa entrada vazia, consumo da entrada
-completa, posições, tokens incompletos e erros inesperados. As regressões incluem
-`input`/`print`/`bool`, comentários incompletos no fim da entrada e o retorno do
-scanner ao último estado de aceitação.
-
-Para testar somente os analisadores, sem abrir janelas:
+Somente analisadores e serviço, sem sessão gráfica:
 
 ```console
-python -m unittest tests.test_compiler_service -v
+python -m unittest tests.test_compiler_service tests.test_semantic -v
 ```
+
+A suíte cobre os sete critérios, os 16 exemplos obrigatórios independentes,
+todas as 59 ações, os oito formatos opcionais do for, escopos, funções/recursão,
+operadores, inicialização por caminhos, vetores, diagnósticos e recompilações.
+Os testes da IDE usam widgets e arquivos reais; apenas respostas de diálogos são
+simuladas. Verificam fonte 14, arquivos, atalhos, redimensionamento, destaque,
+avisos, tabela real/parcial, limpeza e `main.py` com event loop real do Tkinter.
+
+## Limitações conhecidas
+
+- Funções devem ser definidas antes da chamada, exceto recursão direta. Sem
+  protótipos, não há referências antecipadas nem recursão mútua.
+- Chamadas não propagam escritas para globais/vetores. Corpos são analisados
+  isoladamente, com globais no estado da definição e parâmetros inicializados.
+  Passar vetor parcialmente inicializado pode avisar mesmo se a função só escrever
+  nele; não existe análise interprocedimental.
+- Condições constantes e curto-circuito não eliminam caminhos/leituras, podendo
+  gerar avisos conservadores. Laços não provam preenchimento completo de vetores.
+  For sem condição também é conservador quanto à terminação; função não void
+  deve apresentar retorno comprovável.
+- A dobra de constantes atende apenas expressões int pequenas: literais de até
+  1000 caracteres e resultados de até 4096 bits. Não propaga valores de variáveis
+  ou chamadas. Valores maiores ficam desconhecidos. Divisão inteira trunca em
+  direção a zero; divisão por zero e overflow de máquina não são diagnósticos
+  desta etapa. A dobra auxilia índices, sem executar programas.
+- A gramática não oferece casts, sobrecarga, protótipos, vetores multidimensionais,
+  listas de inicialização, break/continue ou `++`. Mantém `bool`, `input` e `print`;
+  não traduz `boolean`, `cin` ou `cout`.
+- O alfabeto é o da tabela léxica; caracteres fora dele são rejeitados.
+- Informa-se o primeiro erro semântico, sem recuperação para erros derivados.

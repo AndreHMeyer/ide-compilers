@@ -1,4 +1,5 @@
 from pathlib import Path
+import runpy
 from tempfile import TemporaryDirectory
 import tkinter as tk
 from tkinter import font
@@ -6,6 +7,7 @@ import unittest
 from unittest.mock import patch
 
 from ide.app import IDEApp
+from ide.compiler_service import compile_source
 from tests.test_compiler_service import EXAMPLES
 
 
@@ -55,7 +57,7 @@ class IDEAppTests(unittest.TestCase):
                 elif path.name.startswith("12_"):
                     self.assertIn("Erro léxico na linha 2, coluna 5", self.output())
                 else:
-                    self.assertEqual(self.output(), "Compilação realizada com sucesso.")
+                    self.assertTrue(self.output().startswith("Compilação realizada com sucesso."))
 
     def test_error_highlight_is_cleared_by_next_compilation(self) -> None:
         self.enter("int a;\na = @;")
@@ -64,7 +66,7 @@ class IDEAppTests(unittest.TestCase):
         self.enter("int a;")
         self.app.compile_menu.invoke(0)
         self.assertFalse(self.app.editor.tag_ranges("error_line"))
-        self.assertEqual(self.output(), "Compilação realizada com sucesso.")
+        self.assertTrue(self.output().startswith("Compilação realizada com sucesso."))
         self.enter("")
         self.app.compile()
         self.assertEqual(self.output(), "Nenhum código-fonte informado.")
@@ -149,7 +151,7 @@ class IDEAppTests(unittest.TestCase):
             self.app.open_file()
         self.assertEqual(self.app._source(), 'int a;\nprint("Olá");\n')
         self.app.compile()
-        self.assertEqual(self.output(), "Compilação realizada com sucesso.")
+        self.assertTrue(self.output().startswith("Compilação realizada com sucesso."))
 
     def test_invalid_utf8_does_not_replace_open_document(self) -> None:
         path = self.folder / "invalido.src"
@@ -166,7 +168,7 @@ class IDEAppTests(unittest.TestCase):
         self.enter("int a;")
         self.app.editor.event_generate("<F9>")
         self.root.update()
-        self.assertEqual(self.output(), "Compilação realizada com sucesso.")
+        self.assertTrue(self.output().startswith("Compilação realizada com sucesso."))
         self.app.editor.mark_set("insert", "1.0")
         self.app.editor.event_generate("<Tab>")
         self.root.update()
@@ -211,6 +213,86 @@ class IDEAppTests(unittest.TestCase):
         self.root.update()
         self.assertEqual(self.app._source(), "")
         self.assertIsNone(self.app.current_file)
+
+    def test_real_symbol_table_and_scope_history(self) -> None:
+        source = "int x=1;{int x=2;print(x);}print(x);"
+        self.enter(source)
+        self.app.compile_button.invoke()
+        expected = compile_source(source).symbols
+        rows = self.app.symbol_tree.get_children()
+        self.assertEqual(len(rows), len(expected))
+        for row, symbol in zip(rows, expected):
+            values = self.app.symbol_tree.item(row, "values")
+            self.assertEqual(values[:4], (symbol.name, symbol.type, symbol.modality, symbol.scope))
+            self.assertEqual(values[4:6], ("Sim", "Sim"))
+        self.assertIn("Análise concluída", self.app.symbol_status.get())
+        self.app.results_tabs.select(1)
+        self.root.update()
+        self.assertEqual(self.app.results_tabs.tab(1, "text"), "Tabela de Símbolos")
+        self.assertTrue(self.app.symbol_tree.cget("xscrollcommand"))
+        self.assertTrue(self.app.symbol_tree.cget("yscrollcommand"))
+
+    def test_semantic_warning_is_nonblocking_and_has_own_color(self) -> None:
+        self.enter("int x;print(x);")
+        self.app.compile()
+        self.assertIn("Compilação realizada com sucesso.", self.output())
+        self.assertIn("Aviso semântico", self.output())
+        self.assertTrue(self.app.messages.tag_ranges("warning"))
+        self.assertFalse(self.app.editor.tag_ranges("error_line"))
+        self.assertIn("1 aviso(s)", self.app.status.get())
+
+    def test_semantic_error_highlight_partial_table_and_reset(self) -> None:
+        self.enter("int old=1;print(old);")
+        self.app.compile()
+        self.enter('int x;\nx="abc";')
+        self.app.compile()
+        self.assertIn("Erro semântico na linha 2, coluna 1", self.output())
+        self.assertEqual(str(self.app.editor.tag_ranges("error_line")[0]), "2.0")
+        self.assertIn("Tabela parcial", self.app.symbol_status.get())
+        rows = self.app.symbol_tree.get_children()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(self.app.symbol_tree.item(rows[0], "values")[0], "x")
+        self.assertEqual(self.app.symbol_tree.item(rows[0], "values")[5], "Não concluído")
+        self.enter("int new=2;print(new);")
+        self.app.compile()
+        self.assertNotIn("Tabela parcial", self.app.symbol_status.get())
+        self.assertNotIn("Aviso", self.output())
+        self.assertFalse(self.app.editor.tag_ranges("error_line"))
+        self.enter("")
+        self.app.compile()
+        self.assertFalse(self.app.symbol_tree.get_children())
+
+    def test_new_document_clears_symbols(self) -> None:
+        self.enter("int x;")
+        self.app.compile()
+        with patch("ide.app.messagebox.askyesnocancel", return_value=False):
+            self.app.new_file()
+        self.assertFalse(self.app.symbol_tree.get_children())
+        self.assertEqual(self.app.symbol_status.get(), "Nenhuma compilação realizada.")
+
+    def test_edits_label_previous_compilation(self) -> None:
+        self.enter("int x;")
+        self.app.compile()
+        self.enter("int y;")
+        self.assertIn("código alterado", self.app.symbol_status.get())
+
+    def test_main_entry_point_starts_real_event_loop(self) -> None:
+        created = []
+
+        def create_app(root):
+            app = IDEApp(root)
+            created.append(app)
+
+            def finish():
+                root.quit()
+                root.destroy()
+
+            root.after(100, finish)
+            return app
+
+        with patch("ide.app.IDEApp", side_effect=create_app):
+            runpy.run_path(str(Path(__file__).resolve().parents[1] / "main.py"), run_name="__main__")
+        self.assertEqual(len(created), 1)
 
 
 if __name__ == "__main__":

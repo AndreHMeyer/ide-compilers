@@ -1,0 +1,7 @@
+int naoUtilizado = 10;
+int valor;
+bool condicao = true;
+if (condicao) {
+    valor = 20;
+}
+print(valor);

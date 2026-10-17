@@ -95,9 +95,10 @@ class CompilerServiceTests(unittest.TestCase):
         self.assertEqual(compile_source("int a; @").kind, "lexical_error")
         self.assertEqual(compile_source("int a; }").kind, "syntactic_error")
 
-    def test_analysis_does_not_execute_or_check_variable_declarations(self) -> None:
-        result = compile_source("while (true) { desconhecida = 1 / 0; }")
+    def test_analysis_checks_declarations_without_executing(self) -> None:
+        result = compile_source("int x; while (true) { x = 1 / 0; }")
         self.assertEqual(result.kind, "success", result.message)
+        self.assertEqual(compile_source("while (true) { desconhecida = 1; }").kind, "semantic_error")
 
     def test_fresh_analyzers_after_error(self) -> None:
         self.assertEqual(compile_source("int a = ;").kind, "syntactic_error")

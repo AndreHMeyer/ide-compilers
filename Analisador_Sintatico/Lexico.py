@@ -35,7 +35,7 @@ class Lexico:
 					endState = state
 					end      = self.position
 
-		# No fim da entrada, o estado atual ainda contém o diagnóstico correto.
+		# Preserva o diagnóstico também quando a entrada acaba no token incompleto.
 		errorState = oldState if state < 0 else state
 		if endState < 0 or (endState != state and self.token_for_state(errorState) == -2):
 			raise LexicalError(SCANNER_ERRORS[errorState], start)
