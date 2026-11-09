@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 
 from Errors import SemanticError
+from codegen.ir import Expression
 
 
 def location(source, position):
@@ -23,7 +24,8 @@ class Diagnostic:
 
     @property
     def formatted(self):
-        phase = {"semantic": "semântico", "lexical": "léxico", "syntactic": "sintático", "internal": "interno"}[self.phase]
+        phase = {"semantic": "semântico", "lexical": "léxico", "syntactic": "sintático",
+                 "codegen": "de geração de código", "internal": "interno"}[self.phase]
         label = ("Aviso " if self.severity == "warning" else "Erro ") + phase
         place = f" na linha {self.line}, coluna {self.column}" if self.line else ""
         return f"{label}{place}: {self.message}"
@@ -49,6 +51,7 @@ class Symbol:
     writes: int = 0
     initialized: bool = False
     initialized_elements: tuple[int, ...] = ()
+    dimension_expression: Expression | None = field(default=None, repr=False)
 
     @property
     def signature(self):
@@ -121,6 +124,7 @@ class Reference:
     position: int
     element: bool = False
     index: int | None = None
+    index_expression: Expression | None = None
 
 
 @dataclass(frozen=True)
@@ -129,3 +133,4 @@ class Value:
     position: int
     constant: int | None = None
     array: Symbol | None = None
+    expression: Expression | None = None

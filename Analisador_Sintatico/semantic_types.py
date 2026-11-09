@@ -2,6 +2,7 @@
 
 from Errors import SemanticError
 from semantic_model import Value
+from codegen.ir import Expression
 
 
 NUMERIC = {"int": 0, "float": 1, "double": 2}
@@ -44,7 +45,9 @@ def unary(operator, value):
     constant = None
     if value.constant is not None:
         constant = -value.constant if op == "-" else ~value.constant if op == "~" else None
-    return Value(value.type, operator.position, constant)
+    return Value(value.type, operator.position, constant,
+                 expression=Expression("unary", value.type, operator.position,
+                                       operator=op, operands=(value.expression,)))
 
 
 def _fold(op, a, b):
@@ -83,4 +86,6 @@ def binary(operator, left, right):
     if result is None:
         raise SemanticError(f"operador '{op}' incompatível com {a} e {b}.", operator.position)
     constant = _fold(op, left.constant, right.constant) if result == "int" else None
-    return Value(result, operator.position, constant)
+    return Value(result, operator.position, constant,
+                 expression=Expression("binary", result, operator.position,
+                                       operator=op, operands=(left.expression, right.expression)))

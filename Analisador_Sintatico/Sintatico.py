@@ -58,6 +58,7 @@ class Sintatico:
 				action = FIRST_SEMANTIC_ACTION + cmd[1] - 1
 				self.stack.append(PARSER_TABLE[state][action][1])
 				self.semantic.execute_action(cmd[1], self.previous_token)
+
 				return False
 			case SLRAction.ACCEPT:
 				return True

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import sys
 from typing import Literal
+from codegen.bip_generator import BIPCodeGenerator, CodeGenerationError
 
 
 # Os arquivos exportados usam imports absolutos entre si. O caminho temporário
@@ -22,7 +23,7 @@ finally:
 
 @dataclass(frozen=True)
 class CompilationResult:
-    kind: Literal["success", "empty", "lexical_error", "syntactic_error", "semantic_error", "unexpected_error"]
+    kind: Literal["success", "empty", "lexical_error", "syntactic_error", "semantic_error", "codegen_error", "unexpected_error"]
     message: str
     line: int | None = None
     column: int | None = None
@@ -30,6 +31,12 @@ class CompilationResult:
     errors: tuple[Diagnostic, ...] = ()
     symbols: tuple[Symbol, ...] = ()
     symbols_partial: bool = False
+    assembly_code: str = ""
+    codegen_status: Literal["skipped", "success", "error", "not_requested"] = "skipped"
+
+    @property
+    def analysis_success(self) -> bool:
+        return self.kind in ("success", "codegen_error")
 
     @property
     def success(self) -> bool:
@@ -71,7 +78,7 @@ def _analysis_error(
                              errors=(diagnostic,), symbols=symbols, symbols_partial=True)
 
 
-def compile_source(source: str) -> CompilationResult:
+def compile_source(source: str, *, generate_code: bool = True) -> CompilationResult:
     """Consome a entrada usando exclusivamente o scanner e o parser exportados."""
     if not source.strip():
         return CompilationResult("empty", "Nenhum código-fonte informado.")
@@ -109,5 +116,28 @@ def compile_source(source: str) -> CompilationResult:
             symbols=semantic.symbols, symbols_partial=True,
         )
 
-    return CompilationResult("success", "Compilação realizada com sucesso.",
-                             warnings=semantic.warnings, symbols=semantic.symbols)
+    if not generate_code:
+        return CompilationResult("success", "Compilação realizada com sucesso.",
+                                 warnings=semantic.warnings, symbols=semantic.symbols,
+                                 codegen_status="not_requested")
+    try:
+        assembly = BIPCodeGenerator().generate(semantic.program, semantic.symbols)
+    except CodeGenerationError as error:
+        line, column = position_to_line_column(source, error.position) or (None, None)
+        diagnostic = Diagnostic("error", "codegen", "codegen_error", error.message, error.position, line, column)
+        return CompilationResult("codegen_error", diagnostic.formatted, line, column,
+                                 warnings=semantic.warnings, errors=(diagnostic,), symbols=semantic.symbols,
+                                 codegen_status="error")
+    except Exception as error:
+        detail = f"{type(error).__name__}: {error}"
+        return CompilationResult("unexpected_error", f"Erro inesperado na geração: {detail}",
+                                 errors=(Diagnostic("error", "internal", "unexpected_error", detail),),
+                                 warnings=semantic.warnings, symbols=semantic.symbols, codegen_status="error")
+    return CompilationResult("success", "Compilação realizada com sucesso. Código assembly BIP IV gerado.",
+                             warnings=semantic.warnings, symbols=semantic.symbols,
+                             assembly_code=assembly, codegen_status="success")
+
+
+def analyze_source(source: str) -> CompilationResult:
+    """API das três primeiras etapas, inclusive recursos fora do subconjunto BIP."""
+    return compile_source(source, generate_code=False)

@@ -57,7 +57,10 @@ class IDEAppTests(unittest.TestCase):
                 elif path.name.startswith("12_"):
                     self.assertIn("Erro léxico na linha 2, coluna 5", self.output())
                 else:
-                    self.assertTrue(self.output().startswith("Compilação realizada com sucesso."))
+                    result = compile_source(path.read_text(encoding="utf-8"))
+                    self.assertTrue(result.analysis_success)
+                    self.assertTrue(self.output().startswith(result.message))
+                    self.assertEqual(self.app.assembly.get("1.0", "end-1c"), result.assembly_code)
 
     def test_error_highlight_is_cleared_by_next_compilation(self) -> None:
         self.enter("int a;\na = @;")
@@ -151,7 +154,9 @@ class IDEAppTests(unittest.TestCase):
             self.app.open_file()
         self.assertEqual(self.app._source(), 'int a;\nprint("Olá");\n')
         self.app.compile()
-        self.assertTrue(self.output().startswith("Compilação realizada com sucesso."))
+        self.assertIn("Erro de geração de código", self.output())
+        self.assertIn("string", self.output())
+        self.assertNotIn("Tabela parcial", self.app.symbol_status.get())
 
     def test_invalid_utf8_does_not_replace_open_document(self) -> None:
         path = self.folder / "invalido.src"
@@ -275,6 +280,105 @@ class IDEAppTests(unittest.TestCase):
         self.app.compile()
         self.enter("int y;")
         self.assertIn("código alterado", self.app.symbol_status.get())
+
+    def test_assembly_tab_font_scrolling_and_read_only(self) -> None:
+        self.enter("int x=10;print(x);")
+        self.app.compile()
+        self.assertEqual(self.app.results_tabs.tab(2, "text"), "Código Assembly")
+        self.app.results_tabs.select(2)
+        self.root.update()
+        widget = self.app.assembly
+        actual = font.Font(root=self.root, font=widget.cget("font"))
+        self.assertEqual(actual.actual("size"), 14)
+        self.assertEqual(actual.metrics("fixed"), 1)
+        self.assertEqual(widget.cget("wrap"), "none")
+        self.assertTrue(widget.cget("xscrollcommand"))
+        self.assertTrue(widget.cget("yscrollcommand"))
+        expected = compile_source(self.app._source()).assembly_code
+        widget.insert("1.0", "invalid")
+        self.assertEqual(widget.get("1.0", "end-1c"), expected)
+        self.assertEqual(widget.cget("state"), "disabled")
+
+    def test_copy_and_export_exact_assembly(self) -> None:
+        self.enter("int v[3];v[1]=20;print(v[1]);")
+        source_path = self.folder / "original.src"
+        self.app._write_file(source_path)
+        self.app.compile()
+        code = self.app.assembly.get("1.0", "end-1c")
+        self.assertTrue(self.app.copy_assembly())
+        self.assertEqual(self.root.clipboard_get(), code)
+        output_path = self.folder / "programa.asm"
+        with patch("ide.app.filedialog.asksaveasfilename", return_value=str(output_path)):
+            self.assertTrue(self.app.save_assembly())
+        self.assertEqual(output_path.read_bytes(), code.encode("utf-8"))
+        self.assertEqual(self.app.current_file, source_path)
+        self.assertEqual(source_path.read_text(encoding="utf-8"), self.app._source())
+        self.assertFalse(self.app.dirty)
+
+    def test_export_does_not_overwrite_source(self) -> None:
+        self.enter("print(10);")
+        path = self.folder / "program.src"
+        self.app._write_file(path)
+        self.app.compile()
+        with patch("ide.app.filedialog.asksaveasfilename", return_value=str(path)), patch(
+            "ide.app.messagebox.showerror",
+        ) as error:
+            self.assertFalse(self.app.save_assembly())
+        error.assert_called_once()
+        self.assertEqual(path.read_text(encoding="utf-8"), "print(10);")
+
+    def test_no_assembly_copy_or_export_before_success(self) -> None:
+        with patch("ide.app.messagebox.showinfo") as info, patch(
+            "ide.app.filedialog.asksaveasfilename",
+        ) as dialog:
+            self.assertFalse(self.app.copy_assembly())
+            self.assertFalse(self.app.save_assembly())
+        self.assertEqual(info.call_count, 2)
+        dialog.assert_not_called()
+
+    def test_failed_generation_clears_old_assembly_and_keeps_complete_symbols(self) -> None:
+        self.enter("int a=10;print(a);")
+        self.app.compile()
+        self.assertTrue(self.app.assembly.get("1.0", "end-1c"))
+        self.enter("int a=10;\nprint(a*2);")
+        self.app.compile()
+        self.assertFalse(self.app.assembly.get("1.0", "end-1c"))
+        self.assertIn("Erro de geração de código", self.output())
+        self.assertNotIn("Tabela parcial", self.app.symbol_status.get())
+        self.assertTrue(self.app.symbol_tree.get_children())
+        self.assertEqual(str(self.app.editor.tag_ranges("error_line")[0]), "2.0")
+        self.enter("int a=;")
+        self.app.compile()
+        self.assertFalse(self.app.assembly.get("1.0", "end-1c"))
+
+    def test_edit_new_and_open_clear_assembly(self) -> None:
+        self.enter("print(10);")
+        self.app.compile()
+        self.enter("print(20);")
+        self.assertFalse(self.app.assembly.get("1.0", "end-1c"))
+        self.app.compile()
+        with patch("ide.app.messagebox.askyesnocancel", return_value=False):
+            self.app.new_file()
+        self.assertFalse(self.app.assembly.get("1.0", "end-1c"))
+        self.enter("print(10);")
+        self.app.compile()
+        path = self.folder / "other.src"
+        path.write_text("print(30);", encoding="utf-8")
+        with patch("ide.app.messagebox.askyesnocancel", return_value=False), patch(
+            "ide.app.filedialog.askopenfilename", return_value=str(path),
+        ):
+            self.app.open_file()
+        self.assertFalse(self.app.assembly.get("1.0", "end-1c"))
+
+    def test_assembly_export_cancel_and_file_failure(self) -> None:
+        self.enter("print(10);")
+        self.app.compile()
+        with patch("ide.app.filedialog.asksaveasfilename", return_value=""):
+            self.assertFalse(self.app.save_assembly())
+        with patch("ide.app.filedialog.asksaveasfilename", return_value=str(self.folder / "absent" / "x.asm")):
+            self.assertFalse(self.app.save_assembly())
+        self.assertIn("Não foi possível salvar ASM", self.output())
+        self.assertTrue(self.app.assembly.get("1.0", "end-1c"))
 
     def test_main_entry_point_starts_real_event_loop(self) -> None:
         created = []

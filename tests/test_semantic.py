@@ -4,7 +4,7 @@ from itertools import product
 from pathlib import Path
 import unittest
 
-from ide.compiler_service import Lexico, Semantico, Sintatico, compile_source
+from ide.compiler_service import Lexico, Semantico, Sintatico, analyze_source as compile_source
 from Constants import PARSER_TABLE, SLRAction
 
 

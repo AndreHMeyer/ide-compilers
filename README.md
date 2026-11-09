@@ -1,12 +1,12 @@
-# IDE Compiladores — análise léxica, sintática e semântica
+# IDE Compiladores — quatro etapas e Assembly BIP IV
 
 Compilador acadêmico com interface desktop Python/Tkinter. O botão **Compilar
-(F9)** integra as três etapas: scanner léxico gerado pelo WebGALS, parser SLR(1)
-gerado e análise semântica conduzida pelas ações da gramática.
+(F9)** integra quatro etapas: scanner léxico gerado pelo WebGALS, parser SLR(1),
+análise semântica e geração de assembly BIP IV a partir das ações da gramática.
 
-A aplicação faz análise estática. Não executa `input`, `print`, funções ou laços,
-não interpreta programas e não gera código de máquina. Usa apenas a biblioteca
-padrão do Python, sem dependências adicionais de execução.
+A aplicação analisa o programa e gera assembly. A execução de `input` e `print`
+acontece no **Bipide 3.0**, pelas portas de entrada e saída. A IDE não interpreta
+o programa. Usa apenas a biblioteca padrão do Python, sem dependências adicionais.
 
 ## Executar
 
@@ -29,7 +29,7 @@ A aplicação não precisa de internet.
 ## Utilizar a IDE
 
 Abra um `.src`/`.txt` ou digite no editor, compile e consulte as abas **Mensagens**
-e **Tabela de Símbolos**. Editor e mensagens mantêm fonte monoespaçada de **14
+e **Tabela de Símbolos** e **Código Assembly**. Editor e mensagens mantêm fonte monoespaçada de **14
 pontos**, tema escuro, rolagem e destaque da linha do erro. Avisos aparecem em
 amarelo e não impedem o sucesso. A divisão entre editor e resultados é ajustável.
 
@@ -39,6 +39,12 @@ rolagem horizontal/vertical e histórico dos escopos encerrados. Em erro, indica
 **Tabela parcial** e inicialização **Não concluído**. Cada compilação limpa o
 resultado anterior; uma edição sinaliza que a tabela pertence à última compilação.
 Novo/Abrir também limpam a tabela.
+
+A aba **Código Assembly** usa fonte monoespaçada de 14 pontos, somente leitura,
+com rolagem horizontal e vertical. **Copiar ASM** copia o conteúdo inteiro;
+**Salvar ASM** exporta exatamente esse conteúdo em UTF-8, sem modificar o fonte.
+Compilações malsucedidas, edições, Novo e Abrir limpam o assembly anterior.
+Sem resultado disponível, os botões orientam a compilar primeiro.
 
 | Ação | Atalho |
 | --- | --- |
@@ -59,6 +65,8 @@ salvar/descartar/cancelar, tratamento de falhas de arquivo e mensagens somente l
 main.py                         Entrada da IDE
 ide/app.py                      Tkinter: editor, arquivos, mensagens e tabela
 ide/compiler_service.py         Integração e CompilationResult
+codegen/ir.py                   Expressões e comandos construídos pelas ações
+codegen/bip_generator.py        Gerador, alocador, validação e erros BIP
 Analisador_Sintatico/
     Constants.py                Tokens e tabelas WebGALS
     Lexico.py                   Scanner com correções de compatibilidade
@@ -73,6 +81,9 @@ Analisador_Sintatico/
 docs/acoes_semanticas.md         Contrato completo dos marcadores
 exemplos/                       13 exemplos anteriores preservados
 exemplos/semantica/             Casos para apresentação da etapa 3
+exemplos/bip/                   31 pares .src/.asm e manifesto de testes
+docs/bip_iv.md                  Contrato do alvo, evidências e roteiro manual
+docs/validacao_bipide.json       Resultados de execução no Bipide instalado
 tests/                          Serviço, semântica e widgets reais
 ```
 
@@ -81,8 +92,11 @@ Cada compilação cria `Lexico(source)`, `Sintatico()` e
 `parser.parse(scanner, semantic)`. O serviço não importa Tkinter.
 
 `CompilationResult` contém `kind`, `message`, `line`, `column`, `errors`,
-`warnings`, `symbols` e `symbols_partial`, com propriedades `success` e
-`diagnostics`. A mensagem principal permanece separada dos avisos estruturados.
+`warnings`, `symbols`, `symbols_partial`, `assembly_code` e `codegen_status`,
+com propriedades `success`, `analysis_success` e `diagnostics`. A mensagem
+principal permanece separada dos avisos estruturados. `compile_source(source)`
+executa as quatro etapas; `analyze_source(source)` preserva a análise das três
+primeiras, inclusive funções, recursão, tipos e controles fora do alvo BIP.
 Os imports absolutos dos arquivos exportados são resolvidos por inclusão temporária
 de sua pasta no caminho de importação, sem deixar `Token.py` sombrear `token`.
 
@@ -91,8 +105,7 @@ de sua pasta no caminho de importação, sem deixar `Token.py` sombrear `token`.
 A exportação atual tem **307 estados SLR, 123 produções, 59 ações semânticas e
 51 estados léxicos**. A gramática exportada é a fonte de verdade da sintaxe.
 Não foram editadas tabelas nem criado outro parser ou reconhecimento por regex.
-`Constants.py` já estava atualizado ao iniciar esta etapa: sua diferença no Git
-pertence à reexportação anterior e foi preservada.
+Nenhum token, estado, produção ou tabela foi alterado nesta etapa.
 
 O parser executa `SLRAction.ACTION` e chama
 `execute_action(numero, previous_token)`. Pilhas distintas preservam valores,
@@ -200,7 +213,7 @@ distintos. Avisos nunca tornam `success` falso.
 
 ## Erros e avisos
 
-O serviço distingue erros léxicos, sintáticos, semânticos e internos. Linha/coluna
+O serviço distingue erros léxicos, sintáticos, semânticos, de geração e internos. Linha/coluna
 começam em 1; tabulação conta como um caractere. Preserva-se a mensagem léxica.
 Erros sintáticos incluem token inesperado/EOF e mensagem original do WebGALS.
 No EOF, usa-se a posição reportada pelo parser.
@@ -210,12 +223,17 @@ para detectar erros léxicos/sintáticos, que têm prioridade. Em erro, não se
 publicam avisos finais; a tabela é parcial. Cada compilação cria contexto limpo.
 Entrada vazia conserva sua mensagem própria.
 
+Erros do alvo usam `kind="codegen_error"`, `codegen_status="error"` e fase
+`codegen`, com linha/coluna. Nesse caso, `analysis_success=True`, `success=False`,
+símbolos completos e avisos preservados, mas `assembly_code=""`. Nenhum assembly
+parcial é publicado. Avisos semânticos sozinhos nunca bloqueiam a geração.
+
 ## Exemplos
 
 Os 13 exemplos anteriores permanecem em `exemplos/`; 11 e 12 contêm erros
 sintático/léxico propositais. Casos da nova etapa em `exemplos/semantica/`:
 
-| Arquivo | Resultado |
+| Arquivo | Resultado da análise das três primeiras etapas |
 | --- | --- |
 | `01_completo.src` | Sucesso: recursão, chamadas aninhadas, vetor e for |
 | `02_avisos.src` | Sucesso com avisos de não utilização/inicialização |
@@ -239,6 +257,36 @@ int x = "abc"; // erro semântico
 ```
 
 ## Testes
+
+Validação da etapa 4 em **08/11/2026**: **247 testes unittest aprovados**, sem
+falhas ou skips (144 de regressão das análises, 77 de geração e 26 de interface).
+Inclui widgets Tkinter, arquivos e clipboard reais. Os testes antigos de análise
+passaram a chamar `analyze_source`, preservando suas expectativas. A interface
+agora distingue sucesso de análise e falha de geração nos exemplos fora do alvo.
+
+Além disso, **31 programas passaram no montador e nas rotinas originais do
+simulador Bipide instalado em `D:\Bipide`**, verificando entradas, saídas
+sucessivas, memória dos símbolos e `HLT`. O driver usa a rotina real da
+interface para resolver endereços dos vetores; não automatiza botões/animações.
+Consulte as evidências em [docs/bip_iv.md](docs/bip_iv.md).
+
+```console
+python -m unittest discover -s tests -v
+python -m unittest tests.test_codegen_bip -v
+python -m tests.generate_bip_examples
+```
+
+Para repetir a validação no Bipide instalado (Windows PowerShell 5.1, STA):
+
+```powershell
+powershell -NoProfile -STA -ExecutionPolicy Bypass -File tests/run_bipide.ps1 -BipidePath D:\Bipide
+```
+
+O script lê `exemplos/bip/casos.json` e escreve `docs/validacao_bipide.json`.
+Não instala nem altera o Bipide. O modelo Python em `tests/bip_machine.py` é
+somente um oráculo adicional; não integra a IDE e não substitui as DLLs originais.
+
+### Histórico da etapa 3
 
 Validação em 17/10/2026, no Windows com Python 3.13.7: **163 testes aprovados**,
 sendo 144 de serviço/semântica e 19 de interface, sem falhas ou testes ignorados.
@@ -289,3 +337,108 @@ avisos, tabela real/parcial, limpeza e `main.py` com event loop real do Tkinter.
   não traduz `boolean`, `cin` ou `cout`.
 - O alfabeto é o da tabela léxica; caracteres fora dele são rejeitados.
 - Informa-se o primeiro erro semântico, sem recuperação para erros derivados.
+
+## Etapa 4: geração BIP IV
+
+Ao iniciar esta etapa, uma reexportação havia substituído `Semantico.py` pelo
+stub e removido as correções de `Lexico.py`. A implementação anterior foi
+recuperada do histórico e seus 144 testes de análise passaram antes da extensão.
+O parser SLR e suas tabelas não foram alterados. A alteração de espaço em branco
+que já existia em `Sintatico.py` foi preservada.
+
+### IR, WebGALS e geração
+
+`Value.expression` guarda uma árvore `Expression`: tipo, posição, literal,
+operador, operandos e referência ao símbolo real. `Reference.index_expression`
+preserva índices aninhados; `Symbol.dimension_expression` preserva o tamanho.
+`Statement` representa declarações, inicializações, atribuições, entrada, saída,
+retornos e corpos de funções. As ações `#63–#67`, `#60/#62/#71–#79` constroem
+expressões; `#20–#24` resolvem referências; `#5/#7/#8/#9` registram comandos;
+`#10/#15` separam funções. `#50` reinicia o estado e `#51` conclui a análise.
+
+As verificações de tipos e de inicialização continuam independentes. Somente
+uma análise concluída sem erros alimenta `BIPCodeGenerator`. Os blocos
+sequenciais mantêm a ordem e a identidade dos símbolos. Estruturas sem tradução
+recebem marcadores explícitos que impedem a geração inteira, mesmo em código
+inalcançável. Não há outro parser, regex sobre o fonte ou mudança na gramática.
+
+### Dados, acumulador, índice e instruções
+
+`MemoryAllocator` associa o ID único do símbolo a `v<ID>`, inclusive em escopos
+distintos. `t<N>` identifica temporários reutilizáveis e `c<N>`, constantes
+compartilhadas. Os nomes do usuário nunca colidem com esses rótulos.
+
+`.data` declara escalares (`v0 : 0`) e vetores (`v1 : 0, 0, 0`), com base no
+primeiro elemento e posições consecutivas. Dimensões constantes como `2+3` ou
+`(2+3)*2` são calculadas; dimensões dinâmicas são rejeitadas. Limites: **1024
+palavras de dados**, incluindo temporários/constantes, e **2048 instruções**.
+A região a partir de 1024 contém E/S e não é alocada. Programas sem dados usam
+`reserved : 0`, porque o montador exige uma declaração em `.data`.
+
+Declarações sem inicializador não emitem execução. Inicializadores executam na
+ordem do fonte; `int v[3]=5;` avalia uma vez e preenche todos os elementos. Os
+avisos de leitura sem inicialização permanecem, mesmo com memória inicialmente zero.
+
+| Construção | Tradução |
+| --- | --- |
+| Literal | `LDI` para −1024..1023; demais constantes válidas em `.data` com `LD` |
+| Variável / atribuição | `LD` / `STO` |
+| Soma/subtração | `ADD`/`ADDI`, `SUB`/`SUBI`, com temporários para subexpressões |
+| `&`, `\|`, `^`, `~` | `AND`/`ANDI`, `OR`/`ORI`, `XOR`/`XORI`, `NOT` |
+| Negação numérica | `NOT`, `ADDI 1`, normalização de 16 bits |
+| `<<`, `>>` | `SLL`, `SRL`, com quantidade constante entre 0 e 15 |
+| Leitura de vetor | Calcula índice em `ACC`, `STO $indr`, `LDV base` |
+| Escrita de vetor | Salva índice e valor, restaura `$indr`, `STOV base` |
+| `input` | `LD $in_port`, seguido de armazenamento no destino |
+| `print` | Calcula expressão e emite `STO $out_port` por argumento |
+| Finalização | `HLT`, sem operando |
+
+`ACC` guarda cada resultado. Temporários preservam subárvores e a ordem da
+subtração; o índice do destino permanece salvo durante todo o RHS, mesmo com
+outros acessos que alterem `INDR`. Entradas e saídas respeitam a ordem dos
+argumentos. **A porta de saída não é um console de texto**: observe cada escrita.
+
+### Tipos, entrada do programa e limites
+
+Somente `int` é traduzido. Decimais aceitam −32768..32767, incluindo `-32768`;
+binários/hexadecimais aceitam padrões de até 16 bits (`0xFFFF` representa −1).
+As operações usam complemento de dois: `32767+1` produz −32768. O deslocamento
+à direita é lógico: `-1 >> 1` produz 32767. Sequências de normalização/máscaras
+compensam o ACC Int32 e o SRL com sinal do simulador, com instruções BIP reais.
+
+Sem `main`, executam-se os comandos globais. Com `int main()` ou `void main()`
+sem parâmetros, executam-se primeiro **todos os comandos globais em ordem
+textual**, depois o corpo de main uma vez, independentemente da posição da
+definição. `return 0;` em int e `return;` em void emitem `HLT`. Código após
+retorno continua validado. Chamadas explícitas a main não são suportadas; o
+aviso semântico anterior de função não utilizada é preservado.
+
+Float, double, char, string e bool não são convertidos silenciosamente.
+Multiplicação/divisão/módulo executáveis, comparações, lógica, condicionais,
+laços, funções comuns e chamadas/recursão geram **erro de geração**. Também são
+rejeitados shifts de quantidade variável, dimensões dinâmicas e retorno não
+zero em main. Esses recursos permanecem nas análises anteriores. Operações
+constantes adicionais são permitidas em dimensões, sem gerar instruções.
+
+Índices constantes têm limites verificados. Índices dinâmicos devem estar
+dentro do vetor; não são inseridas verificações de limites em tempo de execução.
+Normalizações priorizam correção e consomem instruções; exceder a capacidade
+produz diagnóstico, nunca truncamento. O formato binário/MIF exportado diretamente
+pela DLL isolada do montador não é um produto desta IDE; a resolução de vetores
+deve passar pelo fluxo completo do Bipide, conforme [evidências](docs/bip_iv.md).
+
+### Exemplos e uso no Bipide
+
+Os [31 pares de programas e assembly](exemplos/bip/README.md) incluem todos os
+15 casos do pedido, entradas/saídas e testes extras de limites, main e vetores.
+Por exemplo, `01_atribuicao` produz 10; `03_vetor`, 10/20/30;
+`09_input` recebe 5 e produz 15; `14_escopos`, 20/10;
+`22_ordem`, 13/17/22.
+
+Compile um `.src`, abra **Código Assembly**, clique **Salvar ASM** e abra esse
+arquivo em um documento **Assembly** do Bipide 3.0. Se necessário, escolha
+Todos os arquivos ou cole o conteúdo. Selecione **BIP IV**, compile e simule.
+O [roteiro detalhado](docs/bip_iv.md) explica entradas, memória e acompanhamento
+das saídas. A revisão visual dos botões/animações permanece manual; montagem
+e execução das instruções foram efetivamente testadas. Nenhum ajuste na
+gramática do WebGALS foi necessário.

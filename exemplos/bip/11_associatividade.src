@@ -1,0 +1,1 @@
+int a=20,b=5,c=2;int resultado=a-b-c;print(resultado);

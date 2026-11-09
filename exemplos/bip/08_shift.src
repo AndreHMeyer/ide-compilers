@@ -1,0 +1,1 @@
+int valor=5;int resultado=valor<<2;print(resultado);

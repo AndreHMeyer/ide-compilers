@@ -1,0 +1,1 @@
+int numeros[5];int i=2;numeros[i]=50;print(numeros[i]);

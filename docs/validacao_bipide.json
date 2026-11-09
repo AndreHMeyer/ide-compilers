@@ -1,0 +1,473 @@
+{
+    "completedAtUtc":  "2026-11-09T00:19:31.3614136+00:00",
+    "installation":  "D:\\Bipide",
+    "method":  "BIP.dll, compilacao real ucProgramacao.Executa/Classes.Codigo e instrucoes originais ucBipI.dll, processador 4; sem automatizar botoes/animacoes.",
+    "binaries":  [
+                     {
+                         "Path":  "D:\\Bipide\\BIP.dll",
+                         "Hash":  "254C760C31B60ECEB49B392AE14D2738CCD6EA94DBBFF0DA226CA0869FDEC56A"
+                     },
+                     {
+                         "Path":  "D:\\Bipide\\ucBipI.dll",
+                         "Hash":  "7FA4078C590412C33D29E95B321166504E80E4571D1941B5A7F7C442BF5586C5"
+                     },
+                     {
+                         "Path":  "D:\\Bipide\\Bipide.exe",
+                         "Hash":  "C705E4197D178076143D5A64813FC8BF0EA6F69CE704156352E6B32521C6C197"
+                     },
+                     {
+                         "Path":  "D:\\Bipide\\Classes.dll",
+                         "Hash":  "47CBB882B738808FBF06B010EDFE39DED8E1B5417D7FB6DAD66BFF144D474FC0"
+                     }
+                 ],
+    "passed":  31,
+    "failed":  0,
+    "cases":  [
+                  {
+                      "name":  "01_atribuicao",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  5,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      10
+                                  ],
+                      "verifiedMemoryCells":  1
+                  },
+                  {
+                      "name":  "02_soma_subtracao",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  35,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      25,
+                                      15
+                                  ],
+                      "verifiedMemoryCells":  4
+                  },
+                  {
+                      "name":  "03_vetor",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  37,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      10,
+                                      20,
+                                      30
+                                  ],
+                      "verifiedMemoryCells":  3
+                  },
+                  {
+                      "name":  "04_indice_variavel",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  15,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      50
+                                  ],
+                      "verifiedMemoryCells":  6
+                  },
+                  {
+                      "name":  "05_parenteses",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  37,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      -5
+                                  ],
+                      "verifiedMemoryCells":  4
+                  },
+                  {
+                      "name":  "06_soma_vetores",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  40,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      30
+                                  ],
+                      "verifiedMemoryCells":  7
+                  },
+                  {
+                      "name":  "07_bit_a_bit",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  16,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      11
+                                  ],
+                      "verifiedMemoryCells":  3
+                  },
+                  {
+                      "name":  "08_shift",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  18,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      20
+                                  ],
+                      "verifiedMemoryCells":  2
+                  },
+                  {
+                      "name":  "09_input",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  18,
+                      "inputs":  [
+                                     5
+                                 ],
+                      "outputs":  [
+                                      15
+                                  ],
+                      "verifiedMemoryCells":  2
+                  },
+                  {
+                      "name":  "10_input_vetor",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  26,
+                      "inputs":  [
+                                     10
+                                 ],
+                      "outputs":  [
+                                      15
+                                  ],
+                      "verifiedMemoryCells":  4
+                  },
+                  {
+                      "name":  "11_associatividade",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  33,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      13
+                                  ],
+                      "verifiedMemoryCells":  4
+                  },
+                  {
+                      "name":  "12_expressao_vetores",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  51,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      13
+                                  ],
+                      "verifiedMemoryCells":  7
+                  },
+                  {
+                      "name":  "13_mesmo_vetor",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  40,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      -10
+                                  ],
+                      "verifiedMemoryCells":  4
+                  },
+                  {
+                      "name":  "14_escopos",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  9,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      20,
+                                      10
+                                  ],
+                      "verifiedMemoryCells":  2
+                  },
+                  {
+                      "name":  "15_negacao",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  32,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      5
+                                  ],
+                      "verifiedMemoryCells":  3
+                  },
+                  {
+                      "name":  "16_main",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  10,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      5,
+                                      10
+                                  ],
+                      "verifiedMemoryCells":  2
+                  },
+                  {
+                      "name":  "17_limites",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  81,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      -32768,
+                                      32767,
+                                      -32768,
+                                      -11,
+                                      32767,
+                                      -32768,
+                                      -1,
+                                      -1
+                                  ],
+                      "verifiedMemoryCells":  2
+                  },
+                  {
+                      "name":  "18_input_multiplo",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  75,
+                      "inputs":  [
+                                     7,
+                                     -3,
+                                     42
+                                 ],
+                      "outputs":  [
+                                      7,
+                                      -3,
+                                      42,
+                                      46
+                                  ],
+                      "verifiedMemoryCells":  8
+                  },
+                  {
+                      "name":  "19_preserva_indice",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  100,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      10,
+                                      15
+                                  ],
+                      "verifiedMemoryCells":  6
+                  },
+                  {
+                      "name":  "20_indices_aninhados",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  43,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      1
+                                  ],
+                      "verifiedMemoryCells":  5
+                  },
+                  {
+                      "name":  "21_operadores_vetores",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  76,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      2,
+                                      11,
+                                      9,
+                                      -11,
+                                      20,
+                                      5
+                                  ],
+                      "verifiedMemoryCells":  3
+                  },
+                  {
+                      "name":  "22_ordem",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  104,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      13,
+                                      17,
+                                      22
+                                  ],
+                      "verifiedMemoryCells":  6
+                  },
+                  {
+                      "name":  "23_constantes",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  31,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      1024,
+                                      -1025,
+                                      32767,
+                                      32767,
+                                      10,
+                                      10
+                                  ],
+                      "verifiedMemoryCells":  3
+                  },
+                  {
+                      "name":  "24_dimensao",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  13,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      40
+                                  ],
+                      "verifiedMemoryCells":  5
+                  },
+                  {
+                      "name":  "25_multiplas_atribuicoes",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  39,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      10,
+                                      10,
+                                      10,
+                                      12,
+                                      20
+                                  ],
+                      "verifiedMemoryCells":  3
+                  },
+                  {
+                      "name":  "26_constantes_aritmeticas",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  55,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      3,
+                                      -2,
+                                      5,
+                                      20
+                                  ],
+                      "verifiedMemoryCells":  0
+                  },
+                  {
+                      "name":  "27_main_void",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  3,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      7
+                                  ],
+                      "verifiedMemoryCells":  0
+                  },
+                  {
+                      "name":  "28_memoria_limite",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  13,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      30
+                                  ],
+                      "verifiedMemoryCells":  1022
+                  },
+                  {
+                      "name":  "29_unused",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  3,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      0
+                                  ],
+                      "verifiedMemoryCells":  2
+                  },
+                  {
+                      "name":  "30_imediatos",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  42,
+                      "inputs":  [
+
+                                 ],
+                      "outputs":  [
+                                      2,
+                                      11,
+                                      9,
+                                      13,
+                                      7,
+                                      5,
+                                      5
+                                  ],
+                      "verifiedMemoryCells":  0
+                  },
+                  {
+                      "name":  "31_input_indice_aninhado",
+                      "assembled":  true,
+                      "halted":  true,
+                      "steps":  23,
+                      "inputs":  [
+                                     -20
+                                 ],
+                      "outputs":  [
+                                      -20
+                                  ],
+                      "verifiedMemoryCells":  4
+                  }
+              ]
+}

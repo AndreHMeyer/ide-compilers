@@ -1,0 +1,1 @@
+int a,b,c;a=10;b=a;c=b+2;print(10,a,b,c,a+b);

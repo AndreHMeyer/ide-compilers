@@ -1,0 +1,1 @@
+int a=20,b=5,c=2;int r1=a-b-c,r2=a-(b-c),r3=(a+b)-(c+1);print(r1,r2,r3);

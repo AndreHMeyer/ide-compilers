@@ -1,0 +1,1 @@
+int numeros[3];input(numeros[0]);int resultado=numeros[0]+5;print(resultado);

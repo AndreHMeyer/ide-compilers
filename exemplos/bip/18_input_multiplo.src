@@ -1,0 +1,1 @@
+int a,b,v[5],i=2;input(a,b,v[i+1]);print(a,b,v[3],a+b+v[i+1]);

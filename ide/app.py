@@ -168,12 +168,81 @@ class IDEApp:
         self.messages.tag_configure("error", foreground=DARK_THEME["error"])
         self.messages.tag_configure("warning", foreground=DARK_THEME["warning"])
         self._create_symbol_table()
+        self._create_assembly_panel()
         self.panes.add(self.results_tabs, weight=1)
 
         self.status = tk.StringVar(value="Pronto. F9 para compilar.")
         ttk.Label(self.root, textvariable=self.status, padding=(14, 5), anchor="w").grid(
             row=3, column=0, sticky="ew",
         )
+
+    def _create_assembly_panel(self) -> None:
+        frame = ttk.Frame(self.results_tabs)
+        frame.columnconfigure(0, weight=1)
+        frame.rowconfigure(1, weight=1)
+        self.results_tabs.add(frame, text="Código Assembly")
+        toolbar = ttk.Frame(frame, padding=(4, 6))
+        toolbar.grid(row=0, column=0, sticky="ew")
+        ttk.Button(toolbar, text="Copiar ASM", command=self.copy_assembly).pack(side="left", padx=(0, 6))
+        ttk.Button(toolbar, text="Salvar ASM", command=self.save_assembly).pack(side="left")
+        self.assembly = tk.Text(
+            frame, font=self.code_font, wrap="none", state="disabled", width=1, height=6,
+            padx=12, pady=10, borderwidth=0, background=DARK_THEME["editor"],
+            foreground=DARK_THEME["text"], selectbackground=DARK_THEME["selection"],
+            selectforeground="#ffffff", inactiveselectbackground=DARK_THEME["selection"],
+        )
+        self.assembly.grid(row=1, column=0, sticky="nsew")
+        scroll_y = ttk.Scrollbar(frame, orient="vertical", command=self.assembly.yview)
+        scroll_y.grid(row=1, column=1, sticky="ns")
+        scroll_x = ttk.Scrollbar(frame, orient="horizontal", command=self.assembly.xview)
+        scroll_x.grid(row=2, column=0, sticky="ew")
+        self.assembly.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
+
+    def _show_assembly(self, code: str) -> None:
+        self.assembly.configure(state="normal")
+        self.assembly.delete("1.0", "end")
+        self.assembly.insert("1.0", code)
+        self.assembly.configure(state="disabled")
+
+    def _assembly_for_export(self) -> str:
+        if self.editor.edit_modified():
+            self._show_assembly("")
+        code = self.assembly.get("1.0", "end-1c")
+        if not code:
+            messagebox.showinfo("Código Assembly", "Nenhum código assembly disponível. Compile um programa compatível com BIP IV.", parent=self.root)
+        return code
+
+    def copy_assembly(self) -> bool:
+        code = self._assembly_for_export()
+        if not code:
+            return False
+        self.root.clipboard_clear()
+        self.root.clipboard_append(code)
+        self.status.set("Código assembly copiado.")
+        return True
+
+    def save_assembly(self) -> bool:
+        code = self._assembly_for_export()
+        if not code:
+            return False
+        filename = filedialog.asksaveasfilename(
+            parent=self.root, title="Salvar código Assembly BIP IV", defaultextension=".asm",
+            filetypes=[("Assembly BIP", "*.asm"), ("Todos os arquivos", "*.*")],
+            initialfile=(self.current_file.stem if self.current_file else "programa") + ".asm",
+        )
+        if not filename:
+            return False
+        path = Path(filename)
+        if self.current_file and path.resolve() == self.current_file.resolve():
+            messagebox.showerror("Salvar ASM", "Escolha um arquivo diferente do código-fonte original.", parent=self.root)
+            return False
+        try:
+            path.write_text(code, encoding="utf-8", newline="\n")
+        except (OSError, UnicodeError) as error:
+            self._file_error("salvar ASM", error)
+            return False
+        self.status.set(f"Assembly salvo: {path.name}")
+        return True
 
     def _create_symbol_table(self) -> None:
         frame = ttk.Frame(self.results_tabs)
@@ -229,7 +298,7 @@ class IDEApp:
                 return "break"
             # Intercepta antes dos atalhos nativos de Text, como Ctrl+O,
             # que normalmente insere uma quebra de linha no editor.
-            for widget in (self.root, self.editor, self.messages):
+            for widget in (self.root, self.editor, self.messages, self.assembly):
                 widget.bind(sequence, invoke)
 
     def _insert_tab(self, event: tk.Event) -> str:
@@ -249,6 +318,7 @@ class IDEApp:
             self.editor.edit_modified(False)
             self.editor.tag_remove("error_line", "1.0", "end")
             self.status.set("Código alterado. F9 para compilar.")
+            self._show_assembly("")
             if self.symbol_tree.get_children():
                 self.symbol_status.set("Resultado da última compilação — código alterado. F9 para atualizar.")
             self._update_title()
@@ -259,6 +329,7 @@ class IDEApp:
         self.root.title(f"IDE Compiladores - {filename}{marker}")
 
     def _clear_output(self) -> None:
+        self._show_assembly("")
         self.editor.tag_remove("error_line", "1.0", "end")
         self._show_message("")
         rows = self.symbol_tree.get_children()
@@ -289,6 +360,7 @@ class IDEApp:
                 self.messages.insert("end", "\n" + warning.formatted, ("warning",))
             self.messages.configure(state="disabled")
         self._show_symbols(result)
+        self._show_assembly(result.assembly_code)
         self.results_tabs.select(0)
         count = f" {len(result.warnings)} aviso(s)." if result.warnings else ""
         self.status.set(result.message.splitlines()[0] + count)

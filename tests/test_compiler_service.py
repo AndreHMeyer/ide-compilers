@@ -2,7 +2,9 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 
-from ide.compiler_service import compile_source, position_to_line_column
+# Regressão das etapas 1–3: mantém todas as expectativas anteriores, inclusive
+# programas semanticamente válidos que não pertencem ao subconjunto BIP.
+from ide.compiler_service import analyze_source as compile_source, position_to_line_column
 
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "exemplos"

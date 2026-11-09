@@ -103,3 +103,43 @@ e os testes conferem a cobertura dos marcadores.
 Preserve `Semantico.py` e os módulos `semantic_*.py`, além das correções de
 compatibilidade descritas no README. Não sobrescreva essa implementação com o
 stub do gerador que apenas imprime ações.
+
+## Extensão da etapa 4: IR e assembly
+
+Nenhuma produção, tabela ou ação foi acrescentada. As ações anteriores mantêm
+todas as verificações e passam a construir a IR de `codegen/ir.py`:
+
+| Ações | Informação preservada para geração |
+| --- | --- |
+| `#50` | Reinicia `program`, lista corrente de comandos e contexto de função |
+| `#3/#4/#11/#12` | Declaração ligada ao objeto `Symbol` com ID único |
+| `#6/#13` | Árvore da dimensão em `Symbol.dimension_expression` |
+| `#5` | Inicializador e símbolo; vetor mantém preenchimento uniforme |
+| `#20–#24` | Referência resolvida, símbolo, posição e árvore do índice |
+| `#7` | Destino completo e árvore do RHS |
+| `#8/#9` | Um comando de entrada/saída por argumento, na ordem |
+| `#63–#67` | Literal original, tipo e posição |
+| `#60/#62/#71–#79` | Operadores e operandos aninhados após a validação de tipos |
+| `#10/#15` | Separação do corpo da função e da sequência global |
+| `#18/#19` | Retorno com expressão opcional |
+| `#25–#28` | Chamada com seus argumentos, nunca descartada silenciosamente |
+| `#33/#40/#44/#46` | Marcador explícito de controle sem tradução BIP |
+| `#51` | Conclui análise/avisos antes de permitir a geração no serviço |
+
+`Value.expression` contém a árvore de expressão; `Reference.index_expression`
+conserva índices mesmo quando `constant` é desconhecido. As pilhas semânticas
+continuam determinando precedência e associação, sem remontar árvores de texto.
+Blocos sequenciais usam referências de símbolos já resolvidas; o gerador não
+refaz a resolução de escopos. Corpos de função têm listas próprias.
+
+Os comandos de controle continuam com sua representação de fluxo completa em
+`semantic_flow.py`. A IR do alvo registra sua presença como não suportada e
+recusa o programa inteiro; não tenta executar seus comandos sequencialmente.
+Não é necessário preservar a condição para emitir esse diagnóstico. Para
+implementar controle de fluxo futuramente, será preciso estender a IR do alvo
+com condições/caminhos, usando os marcadores já existentes.
+
+`compile_source` passa IR e símbolos para `BIPCodeGenerator` apenas depois de
+uma análise válida. `analyze_source` disponibiliza somente as três etapas
+anteriores. Recursos fora do alvo continuam passando pelos testes de semântica.
+O contrato de geração, main, tipos e limites está em [bip_iv.md](bip_iv.md).

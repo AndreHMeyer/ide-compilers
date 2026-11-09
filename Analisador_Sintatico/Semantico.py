@@ -6,6 +6,7 @@ from Errors import SemanticError
 from semantic_model import Reference, SymbolTable, Value
 from semantic_types import assignable, binary, boolean, integer, scalar, unary
 from semantic_flow import Access, Branch, Declare, FlowAnalyzer, FunctionBody, LeaveScope, Loop, Return
+from codegen.ir import Expression, Statement
 
 
 @dataclass
@@ -42,6 +43,9 @@ class Semantico:
         self.controls = []
         self.operations = []
         self.current_operations = self.operations
+        self.program = []
+        self.current_statements = self.program
+        self.function_statements_parent = None
         self.declared_type = None
         self.declared_token = None
         self.declaration = None
@@ -75,6 +79,7 @@ class Semantico:
         self.declaration = symbol
         if modality != "função":
             self.current_operations.append(Declare(symbol))
+            self.current_statements.append(Statement("declare", symbol.position, symbol=symbol))
         return symbol
 
     def _access(self, ref, write=False, declaration=False):
@@ -88,10 +93,12 @@ class Semantico:
 
     def _reference(self, indexed=False):
         index = None
+        index_expression = None
         if indexed:
             value = self.values.pop()
             integer(value, "o índice do vetor")
             index = value.constant
+            index_expression = value.expression
         ref = self.names.pop()
         symbol = ref.symbol
         if symbol.modality == "função":
@@ -101,7 +108,7 @@ class Semantico:
                 raise SemanticError(f"o identificador '{symbol.name}' não é um vetor.", ref.position)
             if index is not None and (index < 0 or (symbol.size is not None and index >= symbol.size)):
                 raise SemanticError(f"índice {index} fora dos limites do vetor '{symbol.name}'.", value.position)
-        return Reference(symbol, ref.position, indexed, index)
+        return Reference(symbol, ref.position, indexed, index, index_expression)
 
     def _target(self, indexed):
         ref = self._reference(indexed)
@@ -113,7 +120,8 @@ class Semantico:
         ref = self._reference(indexed)
         self._access(ref)
         self.values.append(Value(ref.symbol.type, ref.position,
-                                 array=ref.symbol if ref.symbol.is_array and not indexed else None))
+                                 array=ref.symbol if ref.symbol.is_array and not indexed else None,
+                                 expression=Expression("reference", ref.symbol.type, ref.position, reference=ref)))
 
     def _dimension(self):
         value = self.values.pop()
@@ -121,6 +129,7 @@ class Semantico:
         if value.constant is not None and value.constant <= 0:
             raise SemanticError("o tamanho do vetor deve ser positivo.", value.position)
         self.declaration.size = value.constant
+        self.declaration.dimension_expression = value.expression
 
     def _begin_control(self, kind):
         self.controls.append(Control(kind, self.current_operations))
@@ -157,7 +166,10 @@ class Semantico:
                                         value.position)
             else:
                 assignable(parameter.type, value, value.position)
-        self.values.append(Value(function.type, call.reference.position))
+        self.values.append(Value(function.type, call.reference.position,
+                                 expression=Expression("call", function.type, call.reference.position,
+                                                       reference=call.reference,
+                                                       operands=tuple(v.expression for v in call.arguments))))
 
     def _execute(self, action, token):
         if action == 50:
@@ -173,16 +185,23 @@ class Semantico:
             assignable(self.declaration.type, value, self.declaration.position)
             # A produção vetor[n] = exp define preenchimento uniforme.
             self._access(Reference(self.declaration, self.declaration.position), True, True)
+            self.current_statements.append(Statement("initialize", self.declaration.position,
+                                                      value.expression, symbol=self.declaration))
         elif action in (6, 13):
             self._dimension()
         elif action == 7:
             value, ref = self.values.pop(), self.targets.pop()
             assignable(ref.symbol.type, value, ref.position)
             self._access(ref, True)
+            self.current_statements.append(Statement("assign", ref.position, value.expression, target=ref))
         elif action == 8:
-            self._access(self.targets.pop(), True)
+            ref = self.targets.pop()
+            self._access(ref, True)
+            self.current_statements.append(Statement("input", ref.position, target=ref))
         elif action == 9:
-            scalar(self.values.pop())
+            value = self.values.pop()
+            scalar(value)
+            self.current_statements.append(Statement("print", value.position, value.expression))
         elif action == 10:
             self.function = self._declare("função")
             self.function.initialized = True
@@ -190,18 +209,25 @@ class Semantico:
             self.function_scope = self.table.current_id
             self.function_parent = self.current_operations
             self.current_operations = []
+            self.function_statements_parent = self.current_statements
+            self.current_statements = []
         elif action in (11, 12):
             parameter = self._declare("parâmetro", action == 12)
             self.function.parameters.append(parameter)
         elif action == 14:
             pass  # Assinatura completa antes do corpo, permitindo recursão.
         elif action == 15:
+            self.function_statements_parent.append(Statement(
+                "function", self.function.position, symbol=self.function, body=self.current_statements))
+            self.current_statements = self.function_statements_parent
+            self.function_statements_parent = None
             body = self.current_operations
             self.current_operations = self.function_parent
             self.current_operations.append(FunctionBody(self.function, self.function_scope, body))
             self.table.leave()
             self.function = self.function_parent = self.function_scope = None
         elif action in (18, 19):
+            value = None
             if self.function is None:
                 raise SemanticError("return só pode ser usado dentro de uma função.", token.position)
             if action == 18:
@@ -218,6 +244,8 @@ class Semantico:
                 scopes.append(scope.uid)
                 scope = self.table.scopes[scope.parent_id]
             self.current_operations.append(Return(tuple(scopes)))
+            self.current_statements.append(Statement("return", token.position,
+                                                      value.expression if value else None))
         elif action == 20:
             self.names.append(Reference(self.table.resolve(token), token.position))
         elif action in (21, 22):
@@ -235,7 +263,8 @@ class Semantico:
         elif action == 27:
             self._call_end()
         elif action == 28:
-            self.values.pop()
+            value = self.values.pop()
+            self.current_statements.append(Statement("call", value.position, value.expression))
         elif action == 30:
             self.table.enter("bloco")
         elif action == 31:
@@ -243,6 +272,7 @@ class Semantico:
         elif action == 32:
             boolean(self.values.pop())
         elif action == 33:
+            self.current_statements.append(Statement("unsupported", token.position, detail="laço for"))
             self.table.enter("for")
             self._begin_control("for")
         elif action == 34:
@@ -251,6 +281,7 @@ class Semantico:
             self.current_operations.append(Loop("for", init, condition, body, increment))
             self._leave_scope()
         elif action == 40:
+            self.current_statements.append(Statement("unsupported", token.position, detail="condicional if/else"))
             self._begin_control("if")
         elif action == 42:
             self._next_section()
@@ -259,6 +290,8 @@ class Semantico:
             self.current_operations.append(Branch(control.sections[0],
                                                   control.sections[1] if len(control.sections) == 2 else []))
         elif action in (44, 46):
+            self.current_statements.append(Statement("unsupported", token.position,
+                                                      detail="laço while" if action == 44 else "laço do-while"))
             self._begin_control("while" if action == 44 else "do")
         elif action in (45, 47):
             control = self._end_control()
@@ -278,9 +311,12 @@ class Semantico:
             lexeme = token.lexeme
             base = 16 if lexeme.lower().startswith("0x") else 2 if lexeme.lower().startswith("0b") else 10
             constant = int(lexeme, base) if len(lexeme) <= 1000 else None
-            self.values.append(Value("int", token.position, constant))
+            self.values.append(Value("int", token.position, constant,
+                                     expression=Expression("literal", "int", token.position, literal=lexeme)))
         elif action in (64, 65, 66, 67):
-            self.values.append(Value({64: "float", 65: "char", 66: "string", 67: "bool"}[action], token.position))
+            type_name = {64: "float", 65: "char", 66: "string", 67: "bool"}[action]
+            self.values.append(Value(type_name, token.position,
+                                     expression=Expression("literal", type_name, token.position, literal=token.lexeme)))
         elif 71 <= action <= 79:
             right, left = self.values.pop(), self.values.pop()
             self.values.append(binary(self.operators.pop(), left, right))

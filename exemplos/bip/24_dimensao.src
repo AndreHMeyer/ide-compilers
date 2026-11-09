@@ -1,0 +1,1 @@
+int numeros[2+3];numeros[4]=40;print(numeros[4]);
